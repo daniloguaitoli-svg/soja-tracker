@@ -1,0 +1,20 @@
+{
+  "name": "soja-tracker-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rastreador de preços da soja — mercado brasileiro (físico, exportação e complexo farelo/óleo)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.10"
+  }
+}

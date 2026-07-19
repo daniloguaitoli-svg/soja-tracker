@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+.vercel
+# env / segredos
+.env
+.env.local
+.env.*.local
+# estado gerado em tempo de execução (snapshots do histórico local)
+data/snapshots.json
+*.log
+.DS_Store

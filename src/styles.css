@@ -1,0 +1,330 @@
+/* ============================================================
+   Soja Tracker — "painel de instrumentos", verde-campo escuro.
+   Tokens primeiro, depois componentes. Números sempre mono+tabular.
+   ============================================================ */
+
+:root {
+  /* Paleta — verdes profundos em camadas, semânticas suaves, um acento verde-claro */
+  --bg: #080f09;
+  --surface: #101a11;
+  --surface-2: #162417;
+  --line: #223224;
+  --text: #eaf3e9;
+  --muted: #93aa93;
+  --up: #6ecf9a;     /* alta — verde menta suave */
+  --down: #ec7a67;   /* baixa — coral suave */
+  --accent: #a9c94e; /* verde-soja (vagem madura) — destaque de aba ativa e foco */
+  --accent-2: #6d8c42;
+
+  --display: "Space Grotesk", system-ui, sans-serif;
+  --ui: "Inter", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 48px;
+
+  --radius: 14px;
+  --maxw: 620px;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #0e1a0f 0%, var(--bg) 60%);
+  color: var(--text);
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.up { color: var(--up); }
+.down { color: var(--down); }
+.flat { color: var(--muted); }
+.muted { color: var(--muted); }
+
+/* ---------- App frame ---------- */
+.app {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: var(--s4) var(--s4) var(--s7);
+  min-height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) 0 var(--s4);
+}
+.brand {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.brand .bean { font-size: 22px; }
+.brand small {
+  display: block;
+  font-family: var(--ui);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.topbar .fx {
+  margin-left: auto;
+  text-align: right;
+  font-size: 12px;
+  color: var(--muted);
+}
+.topbar .fx b { color: var(--text); }
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex;
+  gap: var(--s1);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s1);
+  position: sticky;
+  top: var(--s2);
+  z-index: 10;
+  overflow-x: auto;
+}
+.tab {
+  flex: 1 0 auto;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 13px;
+  padding: var(--s2) var(--s3);
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, background .15s;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] {
+  color: #101a06;
+  background: var(--accent);
+}
+
+/* ---------- Cards / painel ---------- */
+.grid { display: grid; gap: var(--s3); margin-top: var(--s4); }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+@media (max-width: 460px) { .grid-2 { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s4);
+}
+.card .label {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.card .big {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 26px;
+  font-weight: 600;
+  margin-top: var(--s1);
+  letter-spacing: -0.01em;
+}
+.card .unit { font-size: 13px; color: var(--muted); font-family: var(--ui); }
+.card .delta { font-size: 13px; margin-top: 2px; font-family: var(--mono); }
+
+.section-title {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: var(--s5) 0 var(--s2);
+}
+
+/* ---------- Lista de cotações ---------- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: var(--s3) var(--s4);
+  margin-bottom: var(--s2);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: border-color .15s, background .15s;
+}
+.row:hover { border-color: var(--accent-2); background: var(--surface-2); }
+.row .rowmain { min-width: 0; flex: 1; }
+.row .rowname {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row .rowsub { font-size: 12px; color: var(--muted); }
+.row .rowprice { text-align: right; white-space: nowrap; }
+.row .rowprice .p {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 15px;
+}
+.row .rowprice .d { font-family: var(--mono); font-size: 12px; }
+.row .rowprice .brl { font-size: 11px; color: var(--muted); }
+.spark { display: block; }
+
+/* ---------- Filtros / busca ---------- */
+.controls { display: flex; gap: var(--s2); margin: var(--s4) 0 var(--s2); flex-wrap: wrap; }
+.input, .select {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  padding: var(--s2) var(--s3);
+}
+.input { flex: 1; min-width: 140px; }
+.input:focus, .select:focus, .row:focus-visible, .tab:focus-visible, .btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.chips { display: flex; gap: var(--s1); flex-wrap: wrap; }
+.chip {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit; font-size: 12px; font-weight: 600;
+  padding: 6px 10px; border-radius: 999px; cursor: pointer;
+}
+.chip[aria-pressed="true"] { color: #101a06; background: var(--accent); border-color: var(--accent); }
+
+/* ---------- Botões ---------- */
+.btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit; font-weight: 600; font-size: 14px;
+  padding: var(--s2) var(--s4);
+  border-radius: 10px; cursor: pointer;
+}
+.btn:hover { border-color: var(--accent-2); }
+.btn-primary { background: var(--accent); color: #101a06; border-color: var(--accent); }
+.btn-ghost { background: transparent; }
+
+/* ---------- Detalhe ---------- */
+.detail-head { display: flex; align-items: flex-start; gap: var(--s3); margin: var(--s3) 0 var(--s4); }
+.detail-head .price {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 34px; font-weight: 600; letter-spacing: -0.01em;
+}
+.tfrow { display: flex; gap: var(--s1); margin: var(--s4) 0 var(--s2); }
+.tfrow .chip { flex: 1; text-align: center; }
+.areachart { width: 100%; height: 170px; }
+.statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); margin-top: var(--s4); }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: var(--s3); }
+.stat .k { font-size: 11px; color: var(--muted); }
+.stat .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 16px; margin-top: 2px; }
+
+.note {
+  font-size: 12px; color: var(--muted);
+  background: var(--surface); border: 1px dashed var(--line);
+  border-radius: 10px; padding: var(--s3); margin-top: var(--s3);
+}
+.pill {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  color: var(--accent); border: 1px solid var(--accent-2);
+  border-radius: 999px; padding: 2px 8px; margin-top: var(--s2);
+}
+
+/* ---------- Data do preço / desatualizado ---------- */
+.pricedate { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.stale {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--down); border: 1px solid var(--down);
+  border-radius: 999px; padding: 1px 7px;
+}
+.stale-banner {
+  display: flex; gap: var(--s2); align-items: flex-start;
+  background: color-mix(in srgb, var(--down) 10%, var(--surface));
+  border: 1px solid var(--down);
+  border-radius: var(--radius);
+  padding: var(--s3) var(--s4);
+  margin-top: var(--s4);
+  font-size: 13px;
+}
+.stale-banner b { color: var(--down); }
+
+/* ---------- Conversor ---------- */
+.conv-row { display: grid; grid-template-columns: 1fr auto; gap: var(--s2); align-items: center; margin-bottom: var(--s2); }
+.conv-out { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; }
+
+/* ---------- Tabelas (Mercado) ---------- */
+.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tbl th {
+  text-align: left; font-weight: 600; font-size: 11px; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted);
+  padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line);
+}
+.tbl td { padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl tbody tr:last-child td { border-bottom: 0; }
+.tbl tbody tr:nth-child(2n) { background: var(--surface-2); }
+.tbl .rt { text-align: right; }
+.tbl .ct { text-align: center; }
+.tbl .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- Estados ---------- */
+.state { text-align: center; color: var(--muted); padding: var(--s7) var(--s4); }
+.spinner {
+  width: 26px; height: 26px; margin: 0 auto var(--s3);
+  border: 3px solid var(--line); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.skeleton { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; height: 62px; margin-bottom: var(--s2); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: .55; } 50% { opacity: .95; } }
+
+/* ---------- Rodapé / aviso ---------- */
+.footer {
+  margin-top: var(--s6);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.footer a { color: var(--accent-2); }
+
+.backlink {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 14px; font-weight: 600;
+  padding: var(--s2) 0; display: inline-flex; align-items: center; gap: 6px;
+}
+.backlink:hover { color: var(--text); }
