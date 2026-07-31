@@ -39,5 +39,11 @@ function devApi() {
 
 export default defineConfig({
   plugins: [react(), devApi()],
-  server: { host: true }, // permite abrir no celular pela rede local (LAN)
+  server: {
+    host: true, // permite abrir no celular pela rede local (LAN)
+    // O store grava data/snapshots.json a cada leitura das cotações. Sem ignorar
+    // essa pasta, o watcher do Vite recarrega a página a cada consulta — e o app
+    // volta sozinho para a aba "Painel" no meio do uso.
+    watch: { ignored: ["**/data/**"] },
+  },
 });

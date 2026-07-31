@@ -111,6 +111,12 @@ export function Detalhe({ slug, onBack }) {
             <p style={{ margin: "8px 0 0", fontSize: 14 }}>{item.descricao || "—"}</p>
             {item.bloomberg && <span className="pill">Bloomberg: {item.bloomberg}</span>}
             <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>Fonte: {item.fonte}</div>
+            {item.viaCache && (
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                O site do CEPEA bloqueia consultas vindas de servidores, então este valor vem da coleta
+                automática do app (algumas vezes por dia), e não de uma leitura ao vivo.
+              </div>
+            )}
           </div>
         </>
       )}

@@ -12,7 +12,7 @@ import { CATALOGO, CATEGORIAS, porSlug } from "./catalogo.js";
 import { lerNoticiasAgricolas } from "./providers/noticiasagricolas.js";
 import { usdbrl as getUsdbrl, getCambio as getCambioBCB } from "./providers/bcb.js";
 import { historicoCBOT, SIMBOLOS } from "./providers/yahoo.js";
-import { widgetCepea } from "./providers/cepea.js";
+import { widgetOuCache, historicoVersionado, cacheAtualizadoEm } from "./providers/cepea.js";
 import { serieUSD } from "./providers/bcb.js";
 import { getClima as getClimaOM } from "./providers/openmeteo.js";
 import { registrar, serieSnapshots } from "./store.js";
@@ -118,6 +118,9 @@ function itemCepea(slug, dado) {
       valorBRLsaca: arred(dado.valor),
       variacaoPct: arred(dado.variacaoPct),
       fonte: cat.fonte,
+      // Em produção o CEPEA bloqueia o servidor; quando o valor vem do cache
+      // versionado no repositório, a tela do indicador avisa.
+      viaCache: dado.viaCache === true,
       bloomberg: cat.bloomberg,
       descricao: cat.descricao,
     },
@@ -151,8 +154,10 @@ export async function getCotacoes() {
   for (const slug of ["cepea-paranagua", "cepea-parana"]) {
     let dado = na?.cepea?.[slug] || null;
     if (!dado) {
+      // Ao vivo quando dá (desenvolvimento) e, em produção, do cache versionado
+      // que o GitHub Actions alimenta — o CEPEA bloqueia servidores.
       try {
-        dado = await widgetCepea(porSlug[slug].cepeaId, porSlug[slug].cepeaFonte);
+        dado = await widgetOuCache(slug, porSlug[slug].cepeaId, porSlug[slug].cepeaFonte);
       } catch {
         dado = null;
       }
@@ -305,10 +310,23 @@ export async function getCotacoes() {
   return {
     fetchedAt: na?.fetchedAt || new Date().toISOString(),
     cambio,
+    cepeaCacheEm: cacheAtualizadoEm(),
     fatorSaca: arred(BUSHEL_POR_SACA, 4),
     categorias,
     aviso: AVISO,
   };
+}
+
+// Série de um indicador sem histórico gratuito: junta os snapshots locais com a
+// série que o job do GitHub Actions acumula no repositório (esta última é a
+// única que sobrevive a um cold start da Vercel, onde o /tmp é apagado).
+async function serieCompleta(slug) {
+  const porData = new Map();
+  for (const p of historicoVersionado(slug)) porData.set(p.date, p.close);
+  for (const p of await serieSnapshots(slug)) porData.set(p.date, p.close);
+  return [...porData.entries()]
+    .map(([date, close]) => ({ date, close }))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
 // Estatísticas simples de uma série [{date, close}].
@@ -347,12 +365,12 @@ export async function getDetalhe(slug, tf = "3M") {
       pontos = await historicoCBOT(slug, tf); // unidade nativa de Chicago
       unidadeSerie = UNIDADE_YAHOO[slug];
     } catch {
-      pontos = await serieSnapshots(slug);
+      pontos = await serieCompleta(slug);
       unidadeSerie = ehFareloOleo ? "R$/t" : "R$/saca";
-      notaHistorico = "Histórico do Yahoo indisponível; usando snapshots locais.";
+      notaHistorico = "Histórico do Yahoo indisponível; usando o histórico local.";
     }
   } else {
-    pontos = await serieSnapshots(slug);
+    pontos = await serieCompleta(slug);
     unidadeSerie = ehFareloOleo ? "R$/t" : "R$/saca";
     if (pontos.length < 2) {
       notaHistorico =
@@ -406,7 +424,7 @@ export async function getMercado() {
   ]);
   const itens = cot.categorias.flatMap((c) => c.itens);
   const get = (slug) => itens.find((i) => i.slug === slug);
-  const cepeaHist = await serieSnapshots("cepea-paranagua").catch(() => []);
+  const cepeaHist = await serieCompleta("cepea-paranagua").catch(() => []);
 
   const cbot = get("cbot-soja");
   const farelo = get("cbot-farelo");

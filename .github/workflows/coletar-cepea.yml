@@ -1,0 +1,47 @@
+# Coleta agendada dos indicadores do CEPEA.
+#
+# O cepea.org.br fica atrás de um desafio anti-bot da Cloudflare que barra
+# servidores (as funções da Vercel recebem 403 em qualquer região), mas responde
+# normalmente a partir dos runners do GitHub. Este job lê os indicadores aqui e
+# versiona o resultado em server/cepea-cache.json — que o app usa como fallback
+# quando a Notícias Agrícolas falha e a chamada direta ao CEPEA é bloqueada.
+#
+# Efeito colateral desejado: o arquivo acumula histórico. Como o indicador CEPEA
+# não tem série gratuita e o /tmp da Vercel é apagado a cada cold start, esta é a
+# única série dele que persiste.
+
+name: Coletar CEPEA
+
+on:
+  schedule:
+    # 12:00 e 21:00 UTC = 9h e 18h em Brasília (antes e depois do pregão).
+    - cron: "0 12,21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coletar-cepea
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Coletar indicadores do CEPEA
+        run: node .github/scripts/coletar-cepea.mjs
+
+      - name: Commitar o cache atualizado
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/cepea-cache.json
+          git diff --staged --quiet || git commit -m "Cache CEPEA: coleta automatica dos indicadores"
+          git push
