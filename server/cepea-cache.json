@@ -1,23 +1,25 @@
 {
- "atualizadoEm": "2026-07-31T13:30:05.140Z",
+ "atualizadoEm": "2026-07-31T21:56:31.970Z",
  "indicadores": {
   "cepea-paranagua": {
-   "valor": 145.29,
-   "data": "30/07/2026",
+   "valor": 144.91,
+   "data": "31/07/2026",
    "produto": "Soja Paranaguá sc de 60kg"
   },
   "cepea-parana": {
-   "valor": 137.82,
-   "data": "30/07/2026",
+   "valor": 137.27,
+   "data": "31/07/2026",
    "produto": "Soja - PR sc de 60kg"
   }
  },
  "historico": {
   "cepea-paranagua": {
-   "2026-07-30": 145.29
+   "2026-07-30": 145.29,
+   "2026-07-31": 144.91
   },
   "cepea-parana": {
-   "2026-07-30": 137.82
+   "2026-07-30": 137.82,
+   "2026-07-31": 137.27
   }
  }
 }
