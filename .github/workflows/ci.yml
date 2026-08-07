@@ -1,0 +1,45 @@
+# Confere cada pull request: o build de produção e as verificações do lado
+# servidor que o build não faz.
+#
+# O `vite build` empacota só o src/, então a metade server/ (datalayer,
+# catálogo, util, providers) nem chega a ser lida por ele — um import quebrado
+# ou uma constante fora de sincronia passa verde e só falha em produção, na hora
+# do request. O scripts/verificar.mjs fecha essa lacuna.
+#
+# Só em pull request (e manual): nada aqui precisa rodar de novo a cada commit
+# do bot de coleta do CEPEA no main.
+
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # O `npm ci` respeita o .npmrc (legacy-peer-deps=true), que é o que evita
+      # a falha de peer deps na instalação estrita.
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build de produção
+        run: npm run build
+
+      - name: Verificar server/ e os invariantes do CLAUDE.md
+        run: npm run verificar
