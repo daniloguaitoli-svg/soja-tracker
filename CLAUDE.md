@@ -28,7 +28,7 @@ soy-pod `--accent`, every number in tabular monospace.
 | Build | Vite 5 (`"type": "module"`) |
 | Dependencies | **react + react-dom only.** No UI kit, no chart library, no HTML parser, no state manager. Charts are hand-rolled SVG (`Sparkline.jsx`, `AreaChart.jsx`, `DualChart.jsx`); scraping is done with plain regex. Keep it that way unless asked. |
 | Styling | One global stylesheet, `src/styles.css`. No CSS modules, no Tailwind. |
-| Tests / lint | **None configured.** No test runner, no ESLint, no Prettier. Verify with `npm run build` and by reading the code — don't invent an `npm test`. |
+| Tests / lint | **No test runner, no ESLint, no Prettier** — don't invent an `npm test`. What exists is `npm run verificar` (`scripts/verificar.mjs`, dependency-free) plus `npm run build`; CI runs both on every PR. |
 | Node | 18+ |
 
 `.npmrc` sets `legacy-peer-deps=true` so Vercel's strict install doesn't fail on
@@ -39,11 +39,20 @@ peer-dependency drift. Don't remove it.
 ```bash
 npm install
 npm run dev        # Vite + the dev /api middleware; host exposed on the LAN
-npm run build      # production build — the de facto check that a change is sound
+npm run build      # production build
+npm run verificar  # loads server/ + asserts the invariants this file declares
 npm run preview
 
 node .github/scripts/coletar-cepea.mjs   # run the CEPEA collector by hand
 ```
+
+**Run both `build` and `verificar` — neither covers the other.** `vite build`
+only bundles `src/`, so it never even parses `server/`: a broken import, a
+catalogue entry missing a required field, a cache slug orphaned by a rename, or
+a constant that drifted out of sync between `server/util.js` and
+`Conversor.jsx` all pass the build and fail at request time in production
+instead. `scripts/verificar.mjs` is what covers that half, and
+`.github/workflows/ci.yml` runs both on every PR.
 
 `vite.config.js` sets `watch: { ignored: ["**/data/**"] }` — the snapshot store
 writes `data/snapshots.json` on every quote read, and without this the watcher
