@@ -29,37 +29,77 @@ const UA = {
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// DUAS CLASSES DE FALHA, DOIS RITMOS DE ESPERA.
+//
+// · Desafio anti-bot (403 "Just a moment…") — é o caso esperado na primeira
+//   requisição e passa sozinho na 2ª ou 3ª tentativa. Poucos segundos bastam.
+//
+// · Origem fora do ar (5xx) — o CEPEA saiu do ar por alguns minutos, não é
+//   bloqueio. O 522 da Cloudflare ("connection timed out") é o mais comum:
+//   a Cloudflare responde, o servidor do CEPEA atrás dela não. Insistir de
+//   1,5 em 1,5 segundo não adianta — isso se resolve em minutos.
+//
+// A espera longa sai de um ORÇAMENTO compartilhado por toda a execução. Numa
+// queda geral todos os indicadores falham em sequência, e uma escada de espera
+// por indicador manteria o job de pé por muito mais tempo do que vale a pena.
+// Esgotado o orçamento, o resto falha rápido e a nova tentativa do workflow
+// (15 min depois) assume o serviço.
+const ORCAMENTO_ORIGEM_MS = 4 * 60 * 1000;
+let orcamentoOrigem = ORCAMENTO_ORIGEM_MS;
+
+// Espera antes da próxima tentativa. Devolve false quando não vale mais
+// esperar — aí o chamador desiste em vez de martelar uma origem que está fora.
+async function aguardarRetentativa(quedaDaOrigem, i) {
+  if (!quedaDaOrigem) {
+    await espera(1500 * (i + 1)); // 1,5s · 3s · 4,5s
+    return true;
+  }
+  const ms = Math.min(15000 * 2 ** i, 90000, orcamentoOrigem); // 15s · 30s · 60s · 90s
+  if (ms <= 0) return false;
+  orcamentoOrigem -= ms;
+  await espera(ms);
+  return true;
+}
+
 // Uma leitura do widget, com retentativas (o primeiro 403 é esperado).
-async function lerWidget(id, fonte = "soja", tentativas = 4) {
+async function lerWidget(id, fonte = "soja", tentativas = 5) {
   const url = `https://www.cepea.org.br/br/widgetproduto.js.php?fonte=${encodeURIComponent(
     fonte
   )}&id_indicador%5B%5D=${id}`;
   let ultimoErro = null;
   for (let i = 0; i < tentativas; i++) {
+    let quedaDaOrigem = false;
     try {
       const r = await fetch(url, { headers: UA, redirect: "follow" });
       const txt = await r.text();
-      if (!r.ok || !txt.includes("imagenet-widget-tabela")) {
-        ultimoErro = `HTTP ${r.status}${txt.includes("Just a moment") ? " (desafio Cloudflare)" : ""}`;
-        await espera(1500 * (i + 1));
-        continue;
-      }
-      const tbody = txt.match(/<tbody>([\s\S]*?)<\/tbody>/i)?.[1] || txt;
-      const linha = tbody.match(/<tr>([\s\S]*?)<\/tr>/i)?.[1] || "";
-      const cels = [...linha.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((c) =>
-        c[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()
-      );
-      const valor = parseNumBR(cels[2]);
-      if (valor == null) {
+      if (r.ok && txt.includes("imagenet-widget-tabela")) {
+        const tbody = txt.match(/<tbody>([\s\S]*?)<\/tbody>/i)?.[1] || txt;
+        const linha = tbody.match(/<tr>([\s\S]*?)<\/tr>/i)?.[1] || "";
+        const cels = [...linha.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((c) =>
+          c[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()
+        );
+        const valor = parseNumBR(cels[2]);
+        if (valor != null) {
+          return { valor, data: cels[0] || null, produto: cels[1] || null };
+        }
         ultimoErro = "valor não encontrado na tabela";
-        await espera(1500);
-        continue;
+      } else {
+        quedaDaOrigem = r.status >= 500;
+        const pista = txt.includes("Just a moment")
+          ? " (desafio Cloudflare)"
+          : quedaDaOrigem
+            ? " (origem fora do ar)"
+            : "";
+        ultimoErro = `HTTP ${r.status}${pista}`;
       }
-      return { valor, data: cels[0] || null, produto: cels[1] || null };
     } catch (e) {
+      // Erro de rede/DNS/TLS: do lado de cá não dá para distinguir de uma
+      // origem fora do ar, então recebe o mesmo tratamento paciente.
+      quedaDaOrigem = true;
       ultimoErro = `${e.name}: ${e.message}`;
-      await espera(1500 * (i + 1));
     }
+    if (i === tentativas - 1) break;
+    if (!(await aguardarRetentativa(quedaDaOrigem, i))) break;
   }
   throw new Error(ultimoErro || "falhou");
 }
