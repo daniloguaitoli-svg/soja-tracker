@@ -28,6 +28,8 @@ concurrency:
 jobs:
   coletar:
     runs-on: ubuntu-latest
+    # A nova tentativa abaixo espera 15 min parada; o teto evita um job pendurado.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +38,24 @@ jobs:
           node-version: 20
 
       - name: Coletar indicadores do CEPEA
+        id: coleta
+        continue-on-error: true
         run: node .github/scripts/coletar-cepea.mjs
+
+      # O CEPEA sai do ar por alguns minutos de vez em quando (HTTP 522 entre a
+      # Cloudflare e a origem — o site fora do ar, não bloqueio). Como só há duas
+      # coletas por dia, perder uma abre um buraco no histórico que este arquivo
+      # existe justamente para não ter. Então espera e tenta de novo, que é o que
+      # se faria à mão.
+      #
+      # O job só fica vermelho se as DUAS tentativas falharem, e o passo de commit
+      # continua valendo quando a segunda dá certo — é para isso que serve o
+      # continue-on-error acima.
+      - name: Nova tentativa após 15 min
+        if: steps.coleta.outcome == 'failure'
+        run: |
+          sleep 900
+          node .github/scripts/coletar-cepea.mjs
 
       - name: Commitar o cache atualizado
         run: |
