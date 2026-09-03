@@ -246,16 +246,47 @@ source doesn't fabricate a new daily point.
 
 `cepea.org.br` sits behind a Cloudflare anti-bot challenge that returns **403 to
 Vercel functions in every region**, but responds normally from GitHub Actions
-runners. Here CEPEA is the *fallback* (Notícias Agrícolas is primary), so without
+runners.
+
+**ATUALIZAÇÃO 03/09/2026 — o runner também foi bloqueado.** Since 02/09/2026
+Cloudflare returns **403 to GitHub Actions runners too**, so the sentence above
+no longer describes reality. A probe tried six routes from a runner — full
+browser header set (`Sec-Fetch-*`, `Sec-Ch-Ua`, `Referer`), the USP host
+`cepea.esalq.usp.br`, with and without `www`, the indicator page, and a
+home-then-widget flow carrying cookies. **All six returned 403, including the
+site's own home page.** That is an IP-range block, not a request-shape problem:
+no header tweak gets through, and the only remaining routes would be solving the
+Cloudflare JS challenge or running the collection from an IP the site serves
+(your own machine or a small VPS pushing `cepea-cache.json` to the repo).
+
+Do not spend another round on header tweaks — the probe already settled it.
+
+**What this does NOT break:** Notícias Agrícolas is the *primary* source here and
+still responds; the CEPEA widget is reinforcement plus the versioned history.
+The apps kept working throughout, serving the cache flagged `viaCache`.
+ Here CEPEA is the *fallback* (Notícias Agrícolas is primary), so without
 the collector production simply loses its safety net. So:
 
 - `.github/workflows/coletar-cepea.yml` runs twice a day (12:00 and 21:00 UTC =
   9h/18h Brasília) and on `workflow_dispatch`.
 - `.github/scripts/coletar-cepea.mjs` reads every catalogue entry with a
-  `cepeaId` (4 attempts each with escalating backoff — the first 403 per run is
-  expected), keeps the previous value on failure, appends to the history, and
-  writes `server/cepea-cache.json`. It only fails the job if **nothing** was
-  collected.
+  `cepeaId` (with retries — the first 403 per run is expected), keeps the
+  previous value on failure, appends to the history, and writes
+  `server/cepea-cache.json`.
+
+  **Failure policy (changed 03/09/2026).** A run that collects nothing no longer
+  fails outright — that turned a known, ongoing block into two emails a day. Now:
+
+  | Outcome | `atualizadoEm` | File | Exit |
+  |---|---|---|---|
+  | anything collected | set to now | written | 0 |
+  | nothing, cache ≤ `LIMITE_DIAS_BLOQUEIO` (3d) | untouched | **not written** | 0, loud warning |
+  | nothing, cache older than that | untouched | **not written** | 1 — a real defect, email it |
+
+  Two properties are load-bearing. `atualizadoEm` now moves **only on a real
+  collection** — it used to be rewritten on every run, stamping today's date on
+  three-day-old data, and the app shows that stamp to the user. And a blocked run
+  writes nothing at all, so there is no diff, no commit and no pointless deploy.
 - The workflow commits the file with `github-actions[bot]`, and that commit
   triggers a fresh Vercel deploy — that's how new data reaches production.
 - In dev the app reads CEPEA live; in production it falls back to the cache.

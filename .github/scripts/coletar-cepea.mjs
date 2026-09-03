@@ -93,13 +93,55 @@ for (const cat of alvos) {
   await espera(800); // gentileza com a fonte
 }
 
-cache.atualizadoEm = new Date().toISOString();
-await writeFile(ARQ, JSON.stringify(cache, null, 1) + "\n", "utf-8");
+// LIMITE DE TOLERÂNCIA AO BLOQUEIO, em dias.
+//
+// Em 02/09/2026 a Cloudflare do CEPEA passou a devolver 403 também aos runners
+// do GitHub — antes só barrava a Vercel. Uma sonda tentou seis rotas (cabeçalho
+// completo de navegador, o host cepea.esalq.usp.br da USP, e o fluxo
+// home-depois-widget com cookie): 403 em todas, INCLUSIVE na home. Isso é
+// bloqueio por faixa de IP, não formato de requisição, e nenhum ajuste de
+// cabeçalho atravessa.
+//
+// Falhar o job a cada execução transformava isso em dois e-mails por dia, todo
+// dia, sobre uma condição já conhecida — e a fonte PRIMÁRIA deste app é a
+// Notícias Agrícolas, que segue respondendo. O CEPEA aqui é reforço e histórico.
+//
+// Então: enquanto o cache ainda estiver dentro do prazo, um bloqueio total
+// avisa alto no log e o job PASSA. Passado o prazo, aí sim falha — porque um
+// bloqueio permanente é um defeito de verdade e precisa chegar até você.
+const LIMITE_DIAS_BLOQUEIO = 3;
 
 const ok = relatorio.filter((l) => l.startsWith("ok")).length;
 console.log(relatorio.join("\n"));
 console.log(`\n${ok}/${alvos.length} indicadores coletados.`);
-if (ok === 0) {
-  console.error("Nenhum indicador coletado — o acesso ao CEPEA pode ter sido bloqueado.");
+
+if (ok > 0) {
+  // `atualizadoEm` só se mexe quando ALGUMA COISA foi coletada. Antes ele era
+  // reescrito em toda execução, inclusive nas que não trouxeram nada — ou seja,
+  // carimbava de hoje um dado de três dias atrás, e o app mostra esse carimbo
+  // ao usuário. Agora o campo quer dizer o que promete: quando os números foram
+  // atualizados pela última vez.
+  cache.atualizadoEm = new Date().toISOString();
+  await writeFile(ARQ, JSON.stringify(cache, null, 1) + "\n", "utf-8");
+  process.exit(0);
+}
+
+// Bloqueio total: não reescreve o arquivo. Sem escrita não há diff, sem diff
+// não há commit, e sem commit não há deploy à toa — o cache anterior continua
+// servindo o app, marcado como `viaCache`.
+const desdeMs = cache.atualizadoEm ? Date.parse(cache.atualizadoEm) : NaN;
+const dias = Number.isFinite(desdeMs) ? (Date.now() - desdeMs) / 86400000 : Infinity;
+
+if (dias > LIMITE_DIAS_BLOQUEIO) {
+  console.error(
+    `Nenhum indicador coletado, e o cache tem ${dias === Infinity ? "nenhuma coleta anterior" : `${dias.toFixed(1)} dias`} — ` +
+      `acima do limite de ${LIMITE_DIAS_BLOQUEIO}. O bloqueio do CEPEA deixou de ser passageiro.`
+  );
   process.exit(1);
 }
+
+console.warn(
+  `AVISO: nenhum indicador coletado (CEPEA bloqueado). O cache tem ${dias.toFixed(1)} dias, ` +
+    `dentro do limite de ${LIMITE_DIAS_BLOQUEIO} — o job passa e o app segue com o cache anterior. ` +
+    `Se persistir, a próxima execução depois do limite falha e avisa.`
+);
