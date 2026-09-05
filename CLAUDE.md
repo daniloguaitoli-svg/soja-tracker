@@ -275,9 +275,18 @@ the collector production simply loses its safety net. So:
 - `.github/workflows/coletar-cepea.yml` runs twice a day (12:00 and 21:00 UTC =
   9h/18h Brasília) and on `workflow_dispatch`.
 - `.github/scripts/coletar-cepea.mjs` reads every catalogue entry with a
-  `cepeaId` (with retries — the first 403 per run is expected), keeps the
-  previous value on failure, appends to the history, and writes
-  `server/cepea-cache.json`.
+  `cepeaId`, keeps the previous value on failure, appends to the history, and
+  writes `server/cepea-cache.json`. Two failure classes get two waiting
+  ladders, because they resolve on different timescales: the anti-bot challenge
+  (`403`, expected on the first request of a run) waits 1.5s · 3s · 4.5s · 6s,
+  while an origin that is simply down (`5xx`, network error) waits
+  15s · 30s · 60s · 90s drawn from a 4-minute budget shared by the whole run —
+  without that budget a general outage would keep the job alive for the better
+  part of an hour. If nothing comes back even then, the workflow retries the
+  lot 15 minutes later. That retry is gated on the **number collected**
+  (`coletados == 0`), not on the exit code, because the failure policy below
+  exits 0 on a short block — gating on the exit code would leave it inert in
+  exactly the passing outage it exists to cover.
 
   **Failure policy (changed 03/09/2026).** A run that collects nothing no longer
   fails outright — that turned a known, ongoing block into two emails a day. Now:
