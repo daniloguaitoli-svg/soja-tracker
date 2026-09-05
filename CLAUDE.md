@@ -245,34 +245,48 @@ source doesn't fabricate a new daily point.
 ### Why the CEPEA collector exists (important)
 
 `cepea.org.br` sits behind a Cloudflare anti-bot challenge that returns **403 to
-Vercel functions in every region**, but responds normally from GitHub Actions
-runners.
+Vercel functions in every region**. GitHub Actions runners are normally served —
+which is the whole reason collection runs there and not in a Vercel function.
 
-**ATUALIZAÇÃO 03/09/2026 — o runner também foi bloqueado.** Since 02/09/2026
-Cloudflare returns **403 to GitHub Actions runners too**, so the sentence above
-no longer describes reality. A probe tried six routes from a runner — full
-browser header set (`Sec-Fetch-*`, `Sec-Ch-Ua`, `Referer`), the USP host
-`cepea.esalq.usp.br`, with and without `www`, the indicator page, and a
-home-then-widget flow carrying cookies. **All six returned 403, including the
-site's own home page.** That is an IP-range block, not a request-shape problem:
-no header tweak gets through, and the only remaining routes would be solving the
-Cloudflare JS challenge or running the collection from an IP the site serves
-(your own machine or a small VPS pushing `cepea-cache.json` to the repo).
+**That access is not guaranteed: it lapsed once already.** From 02/09/2026 until
+midday 04/09/2026 Cloudflare returned **403 to GitHub Actions runners too**. A
+probe tried six routes from a runner — full browser header set (`Sec-Fetch-*`,
+`Sec-Ch-Ua`, `Referer`), the USP host `cepea.esalq.usp.br`, with and without
+`www`, the indicator page, and a home-then-widget flow carrying cookies. **All
+six returned 403, including the site's own home page.** That is an IP-range
+block, not a request-shape problem — so if it recurs, don't spend a round on
+header tweaks: the probe already settled that question. The only routes left
+would be solving the Cloudflare JS challenge, or collecting from an IP the site
+serves (your own machine, or a small VPS pushing `cepea-cache.json` to the repo).
 
-Do not spend another round on header tweaks — the probe already settled it.
+**Recovered 04/09/2026.** The runner has been served since that evening: real
+values landed in `cepea-cache.json` with their dates moving to `04/09/2026`, and
+every scheduled run since has collected. So treat a 403 as a condition that
+comes and goes, not a standing verdict — and check before assuming either way.
+`atualizadoEm` is the reliable signal, because the failure policy below moves it
+*only* on a genuine collection: if it advanced, the runner got through.
 
-**What this does NOT break:** Notícias Agrícolas is the *primary* source here and
-still responds; the CEPEA widget is reinforcement plus the versioned history.
-The apps kept working throughout, serving the cache flagged `viaCache`.
+**What a block does NOT break:** Notícias Agrícolas is the *primary* source here
+and kept responding throughout; the CEPEA widget is reinforcement plus the
+versioned history. The apps stayed up, serving the cache flagged `viaCache`.
  Here CEPEA is the *fallback* (Notícias Agrícolas is primary), so without
 the collector production simply loses its safety net. So:
 
 - `.github/workflows/coletar-cepea.yml` runs twice a day (12:00 and 21:00 UTC =
   9h/18h Brasília) and on `workflow_dispatch`.
 - `.github/scripts/coletar-cepea.mjs` reads every catalogue entry with a
-  `cepeaId` (with retries — the first 403 per run is expected), keeps the
-  previous value on failure, appends to the history, and writes
-  `server/cepea-cache.json`.
+  `cepeaId`, keeps the previous value on failure, appends to the history, and
+  writes `server/cepea-cache.json`. Two failure classes get two waiting
+  ladders, because they resolve on different timescales: the anti-bot challenge
+  (`403`, expected on the first request of a run) waits 1.5s · 3s · 4.5s · 6s,
+  while an origin that is simply down (`5xx`, network error) waits
+  15s · 30s · 60s · 90s drawn from a 4-minute budget shared by the whole run —
+  without that budget a general outage would keep the job alive for the better
+  part of an hour. If nothing comes back even then, the workflow retries the
+  lot 15 minutes later. That retry is gated on the **number collected**
+  (`coletados == 0`), not on the exit code, because the failure policy below
+  exits 0 on a short block — gating on the exit code would leave it inert in
+  exactly the passing outage it exists to cover.
 
   **Failure policy (changed 03/09/2026).** A run that collects nothing no longer
   fails outright — that turned a known, ongoing block into two emails a day. Now:

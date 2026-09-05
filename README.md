@@ -84,7 +84,9 @@ public/         manifest e service worker (PWA)
 - **O site do CEPEA bloqueia servidores.** O `cepea.org.br` está atrás de um
   desafio anti-bot da Cloudflare que responde **403** a qualquer servidor (nas
   funções da Vercel, em qualquer região), mas responde normalmente a partir dos
-  runners do GitHub. Como aqui o CEPEA é o **fallback** dos indicadores (a fonte
+  runners do GitHub. Esse acesso **não é garantido**: entre 02/09/2026 e
+  04/09/2026 o bloqueio alcançou também os runners, e por isso o job tolera um
+  bloqueio curto em vez de falhar — o app seguiu servindo o cache o tempo todo. Como aqui o CEPEA é o **fallback** dos indicadores (a fonte
   primária é a Notícias Agrícolas), sem isso o app ficaria sem rede de proteção
   em produção. Por isso o workflow `.github/workflows/coletar-cepea.yml` roda
   duas vezes por dia e versiona o resultado em `server/cepea-cache.json`; o app
