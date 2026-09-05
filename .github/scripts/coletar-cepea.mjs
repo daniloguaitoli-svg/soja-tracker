@@ -12,7 +12,7 @@
 // quebra, o arquivo acumula um histórico versionado — que sobrevive ao /tmp
 // efêmero da Vercel.
 
-import { readFile, writeFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CATALOGO } from "../../server/catalogo.js";
@@ -139,6 +139,17 @@ await writeFile(ARQ, JSON.stringify(cache, null, 1) + "\n", "utf-8");
 const ok = relatorio.filter((l) => l.startsWith("ok")).length;
 console.log(relatorio.join("\n"));
 console.log(`\n${ok}/${alvos.length} indicadores coletados.`);
+
+// SINAL PARA O WORKFLOW: quantos indicadores vieram.
+//
+// O passo de nova tentativa nao pode deduzir isso do codigo de saida. A
+// politica de tolerancia a bloqueio curto sai com 0 mesmo quando nada foi
+// coletado — entao "saiu 0" nao quer dizer "deu certo". Sem este sinal, a nova
+// tentativa nao dispararia justamente na queda passageira que ela existe para
+// cobrir.
+if (process.env.GITHUB_OUTPUT) {
+  await appendFile(process.env.GITHUB_OUTPUT, `coletados=${ok}\n`);
+}
 if (ok === 0) {
   console.error("Nenhum indicador coletado — o acesso ao CEPEA pode ter sido bloqueado.");
   process.exit(1);

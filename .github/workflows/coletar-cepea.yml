@@ -51,8 +51,14 @@ jobs:
       # O job só fica vermelho se as DUAS tentativas falharem, e o passo de commit
       # continua valendo quando a segunda dá certo — é para isso que serve o
       # continue-on-error acima.
+      #
+      # A condição olha o NÚMERO COLETADO, não o código de saída: a política de
+      # tolerância a bloqueio curto faz o script sair com 0 mesmo sem coletar
+      # nada, e gatilhar por `outcome` deixaria esta nova tentativa inerte
+      # exatamente na queda passageira que ela cobre. O `outcome` continua na
+      # condição para pegar o caso em que o script morre antes de emitir o sinal.
       - name: Nova tentativa após 15 min
-        if: steps.coleta.outcome == 'failure'
+        if: steps.coleta.outputs.coletados == '0' || steps.coleta.outcome == 'failure'
         run: |
           sleep 900
           node .github/scripts/coletar-cepea.mjs
