@@ -95,12 +95,17 @@ for (const cat of alvos) {
 
 // LIMITE DE TOLERÂNCIA AO BLOQUEIO, em dias.
 //
-// Em 02/09/2026 a Cloudflare do CEPEA passou a devolver 403 também aos runners
-// do GitHub — antes só barrava a Vercel. Uma sonda tentou seis rotas (cabeçalho
-// completo de navegador, o host cepea.esalq.usp.br da USP, e o fluxo
-// home-depois-widget com cookie): 403 em todas, INCLUSIVE na home. Isso é
-// bloqueio por faixa de IP, não formato de requisição, e nenhum ajuste de
-// cabeçalho atravessa.
+// Entre 02/09/2026 e o meio-dia de 04/09/2026 a Cloudflare do CEPEA devolveu
+// 403 também aos runners do GitHub — antes só barrava a Vercel. Uma sonda
+// tentou seis rotas (cabeçalho completo de navegador, o host
+// cepea.esalq.usp.br da USP, e o fluxo home-depois-widget com cookie): 403 em
+// todas, INCLUSIVE na home. Isso é bloqueio por faixa de IP, não formato de
+// requisição — se voltar a acontecer, não gaste rodada ajustando cabeçalho: a
+// sonda já resolveu essa pergunta.
+//
+// Na noite de 04/09/2026 o runner voltou a ser atendido, e desde então toda
+// execução agendada coletou. O 403 vai e volta; não é veredito permanente. É
+// exatamente por isso que este limite existe em vez de um bloqueio codificado.
 //
 // Falhar o job a cada execução transformava isso em dois e-mails por dia, todo
 // dia, sobre uma condição já conhecida — e a fonte PRIMÁRIA deste app é a
