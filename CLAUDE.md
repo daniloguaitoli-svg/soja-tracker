@@ -26,9 +26,9 @@ soy-pod `--accent`, every number in tabular monospace.
 | Language | **Plain JavaScript (ESM)** + JSX. **No TypeScript** — do not add it. |
 | UI | React 18, function components + hooks only. |
 | Build | Vite 5 (`"type": "module"`) |
-| Dependencies | **react + react-dom only.** No UI kit, no chart library, no HTML parser, no state manager. Charts are hand-rolled SVG (`Sparkline.jsx`, `AreaChart.jsx`, `DualChart.jsx`); scraping is done with plain regex. Keep it that way unless asked. |
+| Dependencies | **react + react-dom only** at runtime. No UI kit, no chart library, no HTML parser, no state manager. Charts are hand-rolled SVG (`Sparkline.jsx`, `AreaChart.jsx`, `DualChart.jsx`); scraping is done with plain regex. Keep it that way unless asked. In devDependencies there is one addition beyond vite: **jsdom**, used only by `scripts/fumaca.mjs` — nothing in `src/` or `server/` may import it. It is **pinned to `^26`, and that pin is load-bearing**: jsdom 27+ requires Node ≥20.19 and jsdom 30 requires Node ≥22.22, while this project (and the CI runner) is on Node 18+/20. Upgrading it makes `npm run fumaca` die on the runner with `webidl.util.markAsUncloneable is not a function` — from the bundled `undici`, not from any code here. jsdom 26 declares `engines.node: ">=18"` and does not depend on undici at all. |
 | Styling | One global stylesheet, `src/styles.css`. No CSS modules, no Tailwind. |
-| Tests / lint | **No test runner, no ESLint, no Prettier** — don't invent an `npm test`. What exists is `npm run verificar` (`scripts/verificar.mjs`, dependency-free) plus `npm run build`; CI runs both on every PR. |
+| Tests / lint | **No test runner, no ESLint, no Prettier** — don't invent an `npm test`. What exists is three plain scripts: `npm run build`, `npm run verificar` (`scripts/verificar.mjs`, dependency-free) and `npm run fumaca` (`scripts/fumaca.mjs`, mounts the app in jsdom). CI runs all three on every PR. |
 | Node | 18+ |
 
 `.npmrc` sets `legacy-peer-deps=true` so Vercel's strict install doesn't fail on
@@ -41,18 +41,46 @@ npm install
 npm run dev        # Vite + the dev /api middleware; host exposed on the LAN
 npm run build      # production build
 npm run verificar  # loads server/ + asserts the invariants this file declares
+npm run fumaca     # mounts the app in a DOM and opens every tab
 npm run preview
 
 node .github/scripts/coletar-cepea.mjs   # run the CEPEA collector by hand
 ```
 
-**Run both `build` and `verificar` — neither covers the other.** `vite build`
-only bundles `src/`, so it never even parses `server/`: a broken import, a
+**Run all three — no two of them overlap.** `vite build` only bundles
+`src/`, so it never even parses `server/`: a broken import, a
 catalogue entry missing a required field, a cache slug orphaned by a rename, or
 a constant that drifted out of sync between `server/util.js` and
 `Conversor.jsx` all pass the build and fail at request time in production
-instead. `scripts/verificar.mjs` is what covers that half, and
-`.github/workflows/ci.yml` runs both on every PR.
+instead. `scripts/verificar.mjs` is what covers that half.
+
+Neither of those **renders a component**. The build packages code that throws
+the moment it runs, and `verificar` never looks at `src/components/`. The
+sibling Tesouro Tracker shipped a broken screen through exactly that gap: a
+`useState` declaration vanished in an edit, the JSX kept using the variable, and
+the tab died with a `ReferenceError` as soon as anyone opened it — build green,
+verificar green, production broken.
+
+`scripts/fumaca.mjs` closes that third gap. It mounts the real `App` in a jsdom
+DOM, serves `/api` from the real `server/datalayer.js`, and clicks through every
+tab. **Mounting with data is the load-bearing part**: that bug sat *after* the
+`if (!dados) return <Skeletons/>` guard, so rendering without data stops short
+of it, and server-side rendering never runs `useEffect` at all — the state would
+stay `null` either way. Only a real DOM with populated responses runs the body
+of the component.
+
+Two details in there are deliberate and easy to undo by accident. A route whose
+source is down is served as **502 with `{ error }`**, exactly as `api/*.js`
+would — serving `200 {}` instead is a failure production never produces, and it
+makes screens read `undefined.map` and fail for no reason. And emptiness is
+measured on the **`<main>`**, not the container: the frame alone is over 70
+characters, so a floor measured on the container would pass a tab whose body
+rendered nothing.
+
+If you add a tab to `TABS` in `App.jsx`, add its label to `ABAS_ESPERADAS` in
+`scripts/fumaca.mjs` — otherwise the new screen has no coverage at all.
+
+`.github/workflows/ci.yml` runs all three on every PR.
 
 `vite.config.js` sets `watch: { ignored: ["**/data/**"] }` — the snapshot store
 writes `data/snapshots.json` on every quote read, and without this the watcher
@@ -82,6 +110,8 @@ server/
     yahoo.js              free history for CBOT soy / meal / oil
     bcb.js                official PTAX FX (USD/BRL, EUR/BRL) with history
     openmeteo.js          rainfall vs. historical average in the producing regions
+scripts/verificar.mjs invariantes do server/ (sem dependência)
+scripts/fumaca.mjs    monta o app num DOM e abre cada aba (jsdom)
 api/                  Vercel serverless functions: cotacoes, detalhe, cambio, mercado, clima
 .github/
   workflows/coletar-cepea.yml   scheduled CEPEA collection (12:00 & 21:00 UTC)

@@ -43,3 +43,9 @@ jobs:
 
       - name: Verificar server/ e os invariantes do CLAUDE.md
         run: npm run verificar
+
+      # Monta o app de verdade num DOM e abre cada aba. Nem o build nem o
+      # verificar renderizam componente — este é o único que pega uma tela
+      # que quebra ao abrir.
+      - name: Teste de fumaça (monta as telas)
+        run: npm run fumaca
