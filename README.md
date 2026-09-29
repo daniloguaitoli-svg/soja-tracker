@@ -1,5 +1,7 @@
 # 🌱 Soja Tracker — Preços da Soja no Brasil
 
+**App no ar:** [soja-tracker.vercel.app](https://soja-tracker.vercel.app)
+
 App web (PWA) para acompanhar os preços da soja no mercado brasileiro — mercado
 **físico**, de **exportação** e o **complexo farelo/óleo** — todo em português.
 Espelha a arquitetura do Café Tracker / ETF Tracker.
